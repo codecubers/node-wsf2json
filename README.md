@@ -76,6 +76,7 @@ the responding output jscript file is like ：
 
 ### Usage
 
+```js
 var parseWSF = require('wsf2json')
 
 let wsfPath = __dirname + '/test.wsf';
@@ -84,3 +85,4 @@ parseWSF(wsfPath).then((jobs)=>{
 }).catch((error)=>{
     console.error(error)
 })
+```
