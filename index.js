@@ -2,6 +2,73 @@ const fs = require('fs'),
     async = require('async-waterfall'),
     parseString = require('xml2js').parseString;
 
+const beingTaskFileVerification = (path) => function(done) {
+    if (!fs.existsSync(path)) 
+        return done(`File [${path}] not found.`)
+    let wsf = fs.readFileSync(path).toString();
+    if (!wsf) 
+        return done(`File [${path}] is empty.`)
+    done(null, wsf)
+};
+
+const beginTaskWSFStrVerification = (wsf) => function(done) {
+    if (!wsf) 
+        return done(`File [${path}] is empty.`)
+    done(null, wsf)
+}
+
+const taskPrintWSFtoConsole = function(wsf, done) {
+    console.log(wsf)
+    return done(null, wsf);
+}
+
+const taskParseWsfToXML = function(wsf, done) {
+    parseString(wsf, function (err, json) {
+        if (err)
+            return done(err)
+        if (!json)
+            return done(`Parsed json is empty`)
+        done(null, json);
+    })
+};
+
+const taskPrintJSONtoConsole = function(json, done) {
+    console.log(JSON.stringify(json, null, 2))
+    return done(null, json);
+}
+
+const taskVerifyRootTags = function(json, done) {
+    let jobs = [];
+    let { job, package } = json;
+    if (!package && !job) {
+        //No package or job found; possibly incorrect wsf
+        return done(`No package or job root tag found.`)
+    } else if (!package && job) {
+        //Only job tag present
+        jobs.push(extractJobTag(job))
+    } else if (package) {
+        //package is present
+        //TODO: Need to find out how this async map gets returned
+        let {job} = package;
+        if (job) {
+            job.map((j)=>{
+                jobs.push(extractJobTag(j))
+            })
+        }
+    }
+    done(null, jobs)
+} 
+
+const taskReturn = (resolve) => function(jobs, done) {
+    resolve(jobs)
+}
+
+const callback = function(error) {
+    console.log("An error occurred while parsing the wsf file")
+    console.error(error);
+    reject(error);
+}
+
 const extractJobTag = function(job, debug=false) {
     let { $: {id}, runtime, script } = job;
 
@@ -69,82 +136,28 @@ const extractJobTag = function(job, debug=false) {
 
 async function parseWSF(path = '', debug=false) {
     return new Promise((resolve, reject)=>{
-        
         let tasks = [];
-
-        const taskFileVerification = function(done) {
-            if (!fs.existsSync(path)) 
-                return done(`File [${path}] not found.`)
-            let wsf = fs.readFileSync(path).toString();
-            if (!wsf) 
-                return done(`File [${path}] is empty.`)
-            done(null, wsf)
-        };
-        tasks.push(taskFileVerification);
-        
-        const taskPrintWSFtoConsole = function(wsf, done) {
-            console.log(wsf)
-            return done(null, wsf);
-        }
-        if (debug)
-            tasks.push(taskPrintWSFtoConsole);
-
-        const taskParseWsfToXML = function(wsf, done) {
-            parseString(wsf, function (err, json) {
-                if (err)
-                    return done(err)
-                if (!json)
-                    return done(`Parsed json is empty`)
-                done(null, json);
-            })
-        };
+        tasks.push(beingTaskFileVerification(path));
+        if (debug) tasks.push(taskPrintWSFtoConsole);
         tasks.push(taskParseWsfToXML);
-
-        const taskPrintJSONtoConsole = function(json, done) {
-            console.log(JSON.stringify(json, null, 2))
-            return done(null, json);
-        }
-        if (debug)
-            tasks.push(taskPrintJSONtoConsole);
-
-        const taskVerifyRootTags = function(json, done) {
-            let jobs = [];
-            let { job, package } = json;
-            if (!package && !job) {
-                //No package or job found; possibly incorrect wsf
-                return done(`No package or job root tag found.`)
-            } else if (!package && job) {
-                //Only job tag present
-                if (debug) console.log(`Root tag is: job`)
-                jobs.push(extractJobTag(job))
-            } else if (package) {
-                //package is present
-                if (debug) console.log(`Root tag is: package`)
-                //TODO: Need to find out how this async map gets returned
-                let {job} = package;
-                if (job) {
-                    job.map((j)=>{
-                        jobs.push(extractJobTag(j))
-                    })
-                }
-            }
-            done(null, jobs)
-        } 
+        if (debug) tasks.push(taskPrintJSONtoConsole);
         tasks.push(taskVerifyRootTags);
-
-        const taskReturn = function(jobs, done) {
-            resolve(jobs)
-        }
-        tasks.push(taskReturn);
-        
-        const callback = function(error) {
-            console.log("An error occurred while parsing the wsf file")
-            console.error(error);
-            reject(error);
-        }
-
+        tasks.push(taskReturn(resolve));
         async(tasks, callback);
     })
 }
 
-module.exports = parseWSF
+async function parseWSFStr(wsf = '', debug=false) {
+    return new Promise((resolve, reject)=>{
+        let tasks = [];
+        tasks.push(beginTaskWSFStrVerification(wsf));
+        if (debug) tasks.push(taskPrintWSFtoConsole);
+        tasks.push(taskParseWsfToXML);
+        if (debug) tasks.push(taskPrintJSONtoConsole);
+        tasks.push(taskVerifyRootTags);
+        tasks.push(taskReturn(resolve));
+        async(tasks, callback);
+    })
+}
+
+module.exports = { parseWSF, parseWSFStr }
