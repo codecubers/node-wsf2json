@@ -1,0 +1,36 @@
+{
+  "name": "wsf2json",
+  "version": "1.0.0",
+  "description": "With this tiny utility you can parse Windows Script File (WSF) into a json file. Scripts reference inline will be included. Further more, it will also attempts to resolve all the \"src\" referenced files and includes their script in \"value\" strings.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pravynandas/node-wsf2json.git"
+  },
+  "keywords": [
+    "WSF",
+    "Windows Script File",
+    "VBS",
+    "VBScript",
+    "Visual Basic",
+    "JSON Parser",
+    "JS",
+    "JScript",
+    "JScript Praser",
+    "WSH",
+    "Windows Script Host File"
+  ],
+  "author": "Praveen Kumar Nandagiri <pravynandas@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pravynandas/node-wsf2json/issues"
+  },
+  "homepage": "https://github.com/pravynandas/node-wsf2json#readme",
+  "dependencies": {
+    "async-waterfall": "^0.1.5",
+    "xml2js": "^0.4.23"
+  }
+}
