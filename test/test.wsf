@@ -1,0 +1,27 @@
+<?xml version="1.0" ?>
+<?job error="true" debug="true" ?>
+<package>
+    <job id="job1">
+        <runtime>
+            <named helpstring="Enter the Script to exeucte" name="script" />
+        </runtime>
+        <script language="VBScript" name="script" >
+            Dim script
+            'Read and assess the parameter supplied
+            if WScript.Arguments.named.exists("script") Then
+                WScript.Echo "Argument received: " + WScript.Arguments.named("script")
+                script = WScript.Arguments.named("script")
+            Else
+                WScript.Arguments.ShowUsage
+                WScript.Quit
+            End If
+        </script>
+        <script language="VBScript" src="scripts\FS.vbs" />
+    </job>
+
+    <job id="job2">
+        <script language="VBScript" >
+            Wscript.Echo "We are in Job2"
+        </script>
+    </job>
+</package>

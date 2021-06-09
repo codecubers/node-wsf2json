@@ -75,7 +75,7 @@ async function parseWSF(path = '', debug=false) {
         const taskFileVerification = function(done) {
             if (!fs.existsSync(path)) 
                 return done(`File [${path}] not found.`)
-            let wsf = fs.readFileSync('vbspm.wsf').toString();
+            let wsf = fs.readFileSync(path).toString();
             if (!wsf) 
                 return done(`File [${path}] is empty.`)
             done(null, wsf)
@@ -115,20 +115,18 @@ async function parseWSF(path = '', debug=false) {
                 return done(`No package or job root tag found.`)
             } else if (!package && job) {
                 //Only job tag present
-                console.log(`Root tag is: job`)
+                if (debug) console.log(`Root tag is: job`)
                 jobs.push(extractJobTag(job))
             } else if (package) {
                 //package is present
-                console.log(`Root tag is: package`)
+                if (debug) console.log(`Root tag is: package`)
                 //TODO: Need to find out how this async map gets returned
-                package.map((pkg)=>{
-                    let {job} = pkg;
-                    if (job) {
-                        job.map((j)=>{
-                            jobs.push(extractJobTag(j))
-                        })
-                    }
-                })
+                let {job} = package;
+                if (job) {
+                    job.map((j)=>{
+                        jobs.push(extractJobTag(j))
+                    })
+                }
             }
             done(null, jobs)
         } 
