@@ -2,6 +2,28 @@ const fs = require('fs'),
     async = require('async-waterfall'),
     parseString = require('xml2js').parseString;
 
+
+String.prototype.htmlEscape = function htmlEscape(str) {
+    //Ampersand	&	&amp;
+    //Single Quote	'	&apos;
+    //Double Quote	"	&quot;
+    //Greater Than	>	&gt;
+    //Less Than	<	&lt;
+    const CHAR_AMP = '&amp;'
+    const CHAR_SINGLE = '&apos;';
+    // const CHAR_DOUBLE = '&quot;';
+    // const CHAR_GT = '&gt;';
+    // const CHAR_LT = '&lt;';
+
+    // if the string is not provided, and if it's called directly on the string, we can access the text via 'this'
+    if (!str) { str = this; }
+    return str.replace(/\&/g, CHAR_AMP)
+        .replace(/\'/g, CHAR_SINGLE)
+        // .replace(/\"/g, CHAR_DOUBLE)
+        // .replace(/\>/g, CHAR_GT)
+        // .replace(/\</g, CHAR_LT);
+};
+
 const beingTaskFileVerification = (path) => function(done) {
     if (!fs.existsSync(path)) 
         return done(`File [${path}] not found.`)
@@ -23,6 +45,8 @@ const taskPrintWSFtoConsole = function(wsf, done) {
 }
 
 const taskParseWsfToXML = function(wsf, done) {
+    wsf = wsf.htmlEscape();
+    // console.log('wsf', wsf);
     parseString(wsf, function (err, json) {
         if (err)
             return done(err)
@@ -63,7 +87,7 @@ const taskReturn = (resolve) => function(jobs, done) {
     resolve(jobs)
 }
 
-const callback = function(error) {
+const callback = (reject) => function(error) {
     console.log("An error occurred while parsing the wsf file")
     console.error(error);
     reject(error);
@@ -134,6 +158,39 @@ const extractJobTag = function(job, debug=false) {
     }
 }
 
+const extractVBS = (jobs) => jobs.reduce((vbs, job)=>{
+    let { id, script, runtime } = job;
+    if (id) {
+        vbs += `\r\n\r\n\r\n' ================================== Job: ${id} ================================== \r\n`
+    }
+    if (script) {
+        vbs += script.reduce((s, scr)=>{
+            let {type, src, exists, language, value} = scr;
+            if (type) {
+                s += `\r\n' ================= ${type}`
+                if (type === 'src') {
+                    s += ` : ${src}`
+                }
+                s += ` ================= \r\n`
+            }
+            if (language.toLowerCase() === "vbscript" && value) {
+                s += value;
+            }
+            return s;
+        }, '');
+    }
+    //Inject arguments usage
+    if (runtime) {
+        let usage = runtime.reduce((str, param)=>{
+            let {name, helpstring} = param;
+            str += `Wscript.Echo "/${name}:  ${helpstring}"\r\n`;
+            return str;
+        },'');
+        vbs = vbs.replace('WScript.Arguments.ShowUsage', usage);
+    }
+    return vbs;
+},'');
+
 async function parseWSF(path = '', debug=false) {
     return new Promise((resolve, reject)=>{
         let tasks = [];
@@ -143,7 +200,7 @@ async function parseWSF(path = '', debug=false) {
         if (debug) tasks.push(taskPrintJSONtoConsole);
         tasks.push(taskVerifyRootTags);
         tasks.push(taskReturn(resolve));
-        async(tasks, callback);
+        async(tasks, callback(reject));
     })
 }
 
@@ -156,8 +213,8 @@ async function parseWSFStr(wsf = '', debug=false) {
         if (debug) tasks.push(taskPrintJSONtoConsole);
         tasks.push(taskVerifyRootTags);
         tasks.push(taskReturn(resolve));
-        async(tasks, callback);
+        async(tasks, callback(reject));
     })
 }
 
-module.exports = { parseWSF, parseWSFStr }
+module.exports = { parseWSF, parseWSFStr, extractVBS }

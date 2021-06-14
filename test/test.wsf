@@ -4,12 +4,13 @@
     <job id="job1">
         <runtime>
             <named helpstring="Enter the Script to exeucte" name="script" />
+            <named helpstring="Enter the Msg" name="msg" />
         </runtime>
         <script language="VBScript" name="script" >
             Dim script
             'Read and assess the parameter supplied
             if WScript.Arguments.named.exists("script") Then
-                WScript.Echo "Argument received: " + WScript.Arguments.named("script")
+                WScript.Echo "Argument received: " & WScript.Arguments.named("script")
                 script = WScript.Arguments.named("script")
             Else
                 WScript.Arguments.ShowUsage
@@ -20,6 +21,9 @@
     </job>
 
     <job id="job2">
+        <runtime>
+            <named helpstring="Enter the Str" name="str" />
+        </runtime>
         <script language="VBScript" >
             Wscript.Echo "We are in Job2"
         </script>

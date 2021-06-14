@@ -1,10 +1,10 @@
 {
   "name": "wsf2json",
-  "version": "1.0.3",
-  "description": "With this tiny utility you can parse Windows Script File (WSF) into a json file. Scripts reference inline will be included. Further more, it will also attempts to resolve all the \"src\" referenced files and includes their script in \"value\" strings.",
+  "version": "1.0.4",
+  "description": "Windows Script File (WSF) to JSON converter (including code parsing)",
   "main": "index.js",
   "scripts": {
-    "test": "cd test && node index.test.js && cd .."
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
@@ -32,5 +32,9 @@
   "dependencies": {
     "async-waterfall": "^0.1.5",
     "xml2js": "^0.4.23"
+  },
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "mocha": "^9.0.0"
   }
 }
