@@ -129,13 +129,7 @@ parseWSFStr(xml).then((jobs2)=>{
 ```
 
 
-Finally, to extract vbscript components (both inline & src reference content) into a string, call below method passing the parsed wsf json.
+### Alternatives
 
-```js
-const {parseWSF, extractVBS} = require('wsf2json');
-
-let wsfPath = __dirname + '/test.wsf';
-let wsfJson = await parseWSF(wsfPath);
-let vbs = extractVBS(wsfJson);
-console.log('\r\nextracted vbs from wsf file')
-```
+## Convert wsf to formatted vbs file
+Instead of generating a json file, if the use case is to convert wsf file to a well formatted vbs file, then please use npm package [wsf2vbs](https://www.npmjs.com/package/wsf2vbs?activeTab=readme). Note current project is a dependency of the said wsf2vbs package.

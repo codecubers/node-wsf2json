@@ -1,6 +1,6 @@
 {
   "name": "wsf2json",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "description": "Windows Script File (WSF) to JSON converter (including code parsing)",
   "main": "index.js",
   "scripts": {

@@ -1,7 +1,12 @@
 const fs = require('fs'),
+    path = require('path'),
     async = require('async-waterfall'),
     parseString = require('xml2js').parseString;
 
+// To import relative paths from the src tags in wsf file, 
+// we need to know the base director of the wsf file
+let _baseDir = '';
+let debug = false;
 
 String.prototype.htmlEscape = function htmlEscape(str) {
     //Ampersand	&	&amp;
@@ -24,30 +29,29 @@ String.prototype.htmlEscape = function htmlEscape(str) {
         // .replace(/\</g, CHAR_LT);
 };
 
-const beingTaskFileVerification = (path) => function(done) {
-    if (!fs.existsSync(path)) 
-        return done(`File [${path}] not found.`)
-    let wsf = fs.readFileSync(path).toString();
+const beingTaskFileVerification = (_path) => function(done) {
+    if (!fs.existsSync(_path)) 
+        return done(`File [${_path}] not found.`)
+    let wsf = fs.readFileSync(_path).toString();
     if (!wsf) 
-        return done(`File [${path}] is empty.`)
+        return done(`File [${_path}] is empty.`)
     done(null, wsf)
 };
 
 const beginTaskWSFStrVerification = (wsf) => function(done) {
     if (!wsf) 
-        return done(`File [${path}] is empty.`)
+        return done(`empty wsf string.`)
     done(null, wsf)
 }
 
 const taskPrintWSFtoConsole = function(wsf, done) {
-    console.log(wsf)
+    if (debug) console.log(wsf)
     return done(null, wsf);
 }
 
 const taskParseWsfToXML = function(wsf, done) {
     wsf = wsf.htmlEscape();
-    // console.log('wsf', wsf);
-    parseString(wsf, function (err, json) {
+    parseString(wsf, {normalize: false} ,function (err, json) {
         if (err)
             return done(err)
         if (!json)
@@ -57,7 +61,7 @@ const taskParseWsfToXML = function(wsf, done) {
 };
 
 const taskPrintJSONtoConsole = function(json, done) {
-    console.log(JSON.stringify(json, null, 2))
+    if (debug) console.log(JSON.stringify(json, null, 2))
     return done(null, json);
 }
 
@@ -88,12 +92,12 @@ const taskReturn = (resolve) => function(jobs, done) {
 }
 
 const callback = (reject) => function(error) {
-    console.log("An error occurred while parsing the wsf file")
+    if (debug) console.log("An error occurred while parsing the wsf file")
     console.error(error);
     reject(error);
 }
 
-const extractJobTag = function(job, debug=false) {
+const extractJobTag = function(job) {
     let { $: {id}, runtime, script } = job;
 
     let jobId = '';
@@ -128,10 +132,16 @@ const extractJobTag = function(job, debug=false) {
                 //src file present
                 obj['type'] = 'src';
                 obj['src'] = src;
-                if (fs.existsSync(src)) {
+                // normalize path sepeartors on posix
+                src = src.replace('\\', path.sep)
+                let _path = path.join(_baseDir, src);
+                if (debug) console.log("Checking src file exists at path: " + _path);
+                if (fs.existsSync(_path)) {
+                    if (debug) console.log("File found");
                     obj['exists'] = true;
-                    obj['value'] = fs.readFileSync(src).toString();
+                    obj['value'] = fs.readFileSync(_path).toString();
                 } else {
+                    if (debug) console.log("File NOT found");
                     obj['exists'] = false;
                 }
                 arr.push(obj);
@@ -139,7 +149,7 @@ const extractJobTag = function(job, debug=false) {
             if (_) {
                 //inline script present
                 inline = _.split("\r\n").reduce((arr, line)=>{
-                    arr.push(line.trim())
+                    arr.push(line)
                     return arr;
                 }, []);
                 obj['type'] = 'inline';
@@ -149,7 +159,6 @@ const extractJobTag = function(job, debug=false) {
             return arr;
         }, [])
     }
-    if(debug) console.log(`jobScript`, JSON.stringify(jobScript, null, 2));
     
     return {
         id: jobId,
@@ -158,63 +167,38 @@ const extractJobTag = function(job, debug=false) {
     }
 }
 
-const extractVBS = (jobs) => jobs.reduce((vbs, job)=>{
-    let { id, script, runtime } = job;
-    if (id) {
-        vbs += `\r\n\r\n\r\n' ================================== Job: ${id} ================================== \r\n`
-    }
-    if (script) {
-        vbs += script.reduce((s, scr)=>{
-            let {type, src, exists, language, value} = scr;
-            if (type) {
-                s += `\r\n' ================= ${type}`
-                if (type === 'src') {
-                    s += ` : ${src}`
-                }
-                s += ` ================= \r\n`
-            }
-            if (language.toLowerCase() === "vbscript" && value) {
-                s += value;
-            }
-            return s;
-        }, '');
-    }
-    //Inject arguments usage
-    if (runtime) {
-        let usage = runtime.reduce((str, param)=>{
-            let {name, helpstring} = param;
-            str += `Wscript.Echo "/${name}:  ${helpstring}"\r\n`;
-            return str;
-        },'');
-        vbs = vbs.replace('WScript.Arguments.ShowUsage', usage);
-    }
-    return vbs;
-},'');
-
-async function parseWSF(path = '', debug=false) {
+async function parseWSF(_path = '', _debug=false) {
+    debug = _debug;
     return new Promise((resolve, reject)=>{
+        if (debug) console.log('parsing WSF from file at path:' + _path);
+        _baseDir = path.parse(_path).dir;
+        if (debug) console.log("parseWSF()-> base directory: " + _baseDir);
         let tasks = [];
-        tasks.push(beingTaskFileVerification(path));
-        if (debug) tasks.push(taskPrintWSFtoConsole);
+        tasks.push(beingTaskFileVerification(_path));
+        tasks.push(taskPrintWSFtoConsole);
         tasks.push(taskParseWsfToXML);
-        if (debug) tasks.push(taskPrintJSONtoConsole);
+        tasks.push(taskPrintJSONtoConsole);
         tasks.push(taskVerifyRootTags);
         tasks.push(taskReturn(resolve));
         async(tasks, callback(reject));
     })
 }
 
-async function parseWSFStr(wsf = '', debug=false) {
+async function parseWSFStr(wsf = '', baseDir = '', _debug=false) {
+    debug = _debug;
     return new Promise((resolve, reject)=>{
+        if (debug) console.log('parsing WSF from string...')
+        _baseDir = baseDir ? baseDir : __dirname;
+        if (debug ) console.log("parseWSFStr()-> base directory: " + _baseDir)
         let tasks = [];
         tasks.push(beginTaskWSFStrVerification(wsf));
-        if (debug) tasks.push(taskPrintWSFtoConsole);
+        tasks.push(taskPrintWSFtoConsole);
         tasks.push(taskParseWsfToXML);
-        if (debug) tasks.push(taskPrintJSONtoConsole);
+        tasks.push(taskPrintJSONtoConsole);
         tasks.push(taskVerifyRootTags);
         tasks.push(taskReturn(resolve));
         async(tasks, callback(reject));
     })
 }
 
-module.exports = { parseWSF, parseWSFStr, extractVBS }
+module.exports = { parseWSF, parseWSFStr }
